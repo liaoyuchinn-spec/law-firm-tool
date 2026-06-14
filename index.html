@@ -1,0 +1,1723 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>文匯法律事務所｜工時管理暨判決查詢</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://unpkg.com/html-docx-js/dist/html-docx.js"></script>
+<style>
+  :root {
+    --navy: #1a2847;
+    --gold: #b8962e;
+    --gold-light: #d4af55;
+    --bg: #f0f2f5;
+    --card: #ffffff;
+    --text: #1a1a2e;
+    --muted: #6b7280;
+    --border: #e2e8f0;
+    --danger: #dc2626;
+    --success: #16a34a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', 'PingFang TC', 'Microsoft JhengHei', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; }
+
+  /* Header */
+  header { background: var(--navy); color: white; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+  header .brand { display: flex; align-items: center; gap: 12px; }
+  header .brand-icon { width: 36px; height: 36px; background: var(--gold); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: bold; color: var(--navy); }
+  header h1 { font-size: 17px; font-weight: 600; letter-spacing: 1px; }
+  header .subtitle { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+
+  /* Tabs */
+  .tabs { display: flex; background: var(--navy); border-top: 1px solid rgba(255,255,255,0.1); }
+  .tab { padding: 11px 28px; cursor: pointer; color: #94a3b8; font-size: 13px; font-weight: 500; border-bottom: 3px solid transparent; transition: all 0.2s; letter-spacing: 0.5px; }
+  .tab:hover { color: white; background: rgba(255,255,255,0.05); }
+  .tab.active { color: var(--gold-light); border-bottom-color: var(--gold-light); }
+
+  /* Main */
+  main { max-width: 1200px; margin: 24px auto; padding: 0 20px; }
+  .section { display: none; }
+  .section.active { display: block; }
+
+  /* Cards */
+  .card { background: var(--card); border-radius: 10px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); margin-bottom: 18px; border: 1px solid var(--border); }
+  .card-title { font-size: 14px; font-weight: 600; color: var(--navy); margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+  .card-title::before { content: ''; width: 4px; height: 16px; background: var(--gold); border-radius: 2px; flex-shrink: 0; }
+
+  /* Form */
+  .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
+  .form-group { display: flex; flex-direction: column; gap: 5px; }
+  .form-group.full { grid-column: 1 / -1; }
+  label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  input, select, textarea { border: 1.5px solid var(--border); border-radius: 6px; padding: 8px 10px; font-size: 13px; color: var(--text); background: white; transition: border-color 0.2s; font-family: inherit; }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--gold); }
+  textarea { resize: vertical; min-height: 60px; }
+
+  /* Buttons */
+  .btn { padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px; font-family: inherit; }
+  .btn-primary { background: var(--navy); color: white; }
+  .btn-primary:hover { background: #243460; }
+  .btn-gold { background: var(--gold); color: white; }
+  .btn-gold:hover { background: var(--gold-light); }
+  .btn-outline { background: white; border: 1.5px solid var(--border); color: var(--text); }
+  .btn-outline:hover { border-color: var(--navy); background: #f8fafc; }
+  .btn-danger { background: var(--danger); color: white; }
+  .btn-danger:hover { background: #b91c1c; }
+  .btn-sm { padding: 5px 10px; font-size: 12px; }
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+
+  /* Table */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { background: #f8fafc; color: var(--muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding: 9px 12px; text-align: left; border-bottom: 2px solid var(--border); white-space: nowrap; }
+  td { padding: 9px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tr:hover td { background: #f8fafc; }
+  tr:last-child td { border-bottom: none; }
+  .hours-cell { font-weight: 600; color: var(--navy); }
+  .badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 500; }
+  .badge-blue { background: #dbeafe; color: #1d4ed8; }
+  .badge-green { background: #dcfce7; color: #15803d; }
+  .badge-gray { background: #f1f5f9; color: var(--muted); }
+
+  /* Stats bar */
+  .stats-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 14px; margin-bottom: 18px; }
+  .stat { background: var(--card); border-radius: 10px; padding: 14px 16px; border: 1px solid var(--border); box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+  .stat-label { font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat-value { font-size: 22px; font-weight: 700; color: var(--navy); margin-top: 4px; }
+  .stat-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  /* Filter row */
+  .filter-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+  .filter-row input, .filter-row select { min-width: 140px; }
+
+  /* Judgment search */
+  .search-box { display: flex; gap: 10px; margin-bottom: 16px; }
+  .search-box input { flex: 1; font-size: 15px; padding: 10px 14px; border-radius: 8px; }
+  .search-box .btn { padding: 10px 20px; }
+  .platform-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+  .platform-btn { background: white; border: 1.5px solid var(--border); border-radius: 10px; padding: 14px; cursor: pointer; transition: all 0.2s; text-align: left; text-decoration: none; display: flex; align-items: center; gap: 12px; }
+  .platform-btn:hover { border-color: var(--gold); box-shadow: 0 2px 8px rgba(184,150,46,0.15); }
+  .platform-icon { width: 38px; height: 38px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+  .platform-info .name { font-weight: 600; font-size: 13px; color: var(--navy); }
+  .platform-info .desc { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .history-list { list-style: none; }
+  .history-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .history-item:last-child { border-bottom: none; }
+  .history-keyword { color: var(--navy); cursor: pointer; font-weight: 500; }
+  .history-keyword:hover { color: var(--gold); text-decoration: underline; }
+  .history-meta { font-size: 11px; color: var(--muted); }
+  .case-type-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px; }
+  .case-type-btn { background: #f0f4ff; border: 1.5px solid #c7d2fe; border-radius: 6px; padding: 6px 10px; font-size: 12px; cursor: pointer; text-align: center; color: #3730a3; font-weight: 500; transition: all 0.2s; }
+  .case-type-btn:hover { background: #3730a3; color: white; border-color: #3730a3; }
+
+  /* Upload zone */
+  .upload-zone { border: 2px dashed var(--border); border-radius: 10px; padding: 28px; text-align: center; cursor: pointer; transition: all 0.2s; background: #fafbfc; }
+  .upload-zone:hover, .upload-zone.drag { border-color: var(--gold); background: #fffbeb; }
+  .upload-zone .icon { font-size: 32px; margin-bottom: 8px; }
+  .upload-zone p { color: var(--muted); font-size: 13px; }
+  .upload-zone strong { color: var(--navy); }
+
+  /* Alert */
+  .alert { padding: 10px 14px; border-radius: 6px; font-size: 13px; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+  .alert-info { background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
+  .alert-success { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+  .alert-warn { background: #fef9c3; color: #854d0e; border: 1px solid #fde047; }
+
+  /* Modal */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; align-items: center; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: white; border-radius: 12px; padding: 24px; width: 90%; max-width: 560px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+  .modal-title { font-size: 16px; font-weight: 700; color: var(--navy); margin-bottom: 20px; }
+  .modal-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+
+  /* Summary table accent */
+  .summary-row td:first-child { font-weight: 600; }
+  .total-row td { background: #f0f4ff; font-weight: 700; color: var(--navy); }
+
+  /* Empty state */
+  .empty { text-align: center; padding: 40px 20px; color: var(--muted); }
+  .empty .empty-icon { font-size: 40px; margin-bottom: 10px; }
+  .empty p { font-size: 14px; }
+
+  /* Responsive */
+  @media (max-width: 640px) {
+    .form-grid { grid-template-columns: 1fr; }
+    .stats-bar { grid-template-columns: 1fr 1fr; }
+    header h1 { font-size: 14px; }
+  }
+
+  /* ===== Invoice module ===== */
+  .inv-calc-box { background: #f0f4ff; border: 1px solid #c7d2fe; border-radius: 8px; padding: 16px; margin-top: 16px; }
+  .inv-calc-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(130px,1fr)); gap: 14px; }
+  .inv-calc-item .lbl { font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; }
+  .inv-calc-item .val { font-size: 20px; font-weight: 700; color: var(--navy); margin-top: 3px; }
+  .inv-calc-item .val.red { color: var(--danger); }
+  .inv-calc-item .val.green { color: var(--success); }
+
+  /* Invoice document preview wrapper */
+  .inv-doc-wrap { overflow: auto; border: 1px solid var(--border); border-radius: 6px; background: #e8e8e8; padding: 24px; }
+  .inv-doc-wrap > div { box-shadow: 0 4px 20px rgba(0,0,0,0.2); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="brand-icon">WH</div>
+    <div>
+      <h1>文匯法律事務所</h1>
+      <div class="subtitle">工時管理暨判決查詢系統</div>
+    </div>
+  </div>
+  <div style="font-size:12px;color:#64748b;" id="clock"></div>
+</header>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('time')">⏱ 工時管理</div>
+  <div class="tab" onclick="switchTab('judgment')">⚖️ 判決查詢</div>
+  <div class="tab" onclick="switchTab('report')">📊 統計報表</div>
+  <div class="tab" onclick="switchTab('invoice')">📄 請款單</div>
+</div>
+
+<main>
+
+<!-- ===== 工時管理 ===== -->
+<div class="section active" id="section-time">
+  <div class="stats-bar" id="statsBar"></div>
+
+  <!-- 新增工時 -->
+  <div class="card">
+    <div class="card-title">新增工時紀錄</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>案件名稱 *</label>
+        <input type="text" id="f-case" placeholder="例：ABC公司股權交易案" list="caseList">
+        <datalist id="caseList"></datalist>
+      </div>
+      <div class="form-group">
+        <label>客戶名稱</label>
+        <input type="text" id="f-client" placeholder="例：ABC股份有限公司" list="clientList">
+        <datalist id="clientList"></datalist>
+      </div>
+      <div class="form-group">
+        <label>承辦律師 *</label>
+        <input type="text" id="f-attorney" placeholder="例：廖郁晴" list="attorneyList">
+        <datalist id="attorneyList"></datalist>
+      </div>
+      <div class="form-group">
+        <label>工作日期 *</label>
+        <input type="date" id="f-date">
+      </div>
+      <div class="form-group">
+        <label>計費時數 (小時) *</label>
+        <input type="number" id="f-hours" placeholder="1.5" min="0.1" step="0.1">
+      </div>
+      <div class="form-group">
+        <label>費率 (元/小時，選填)</label>
+        <input type="number" id="f-rate" placeholder="6000" step="500">
+      </div>
+      <div class="form-group">
+        <label>摘要（時數報告用，選填）</label>
+        <input type="text" id="f-summary" placeholder="例：確認事宜／會議／撰寫書狀">
+      </div>
+      <div class="form-group full">
+        <label>工作說明 *（時數報告說明欄）</label>
+        <textarea id="f-desc" placeholder="例：審閱股權轉讓協議第3-5條，研析交割前提條件之合規性"></textarea>
+      </div>
+      <div class="form-group full">
+        <label>備註</label>
+        <input type="text" id="f-notes" placeholder="選填">
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="addEntry()">✚ 新增紀錄</button>
+      <button class="btn btn-outline" onclick="clearForm()">清除</button>
+      <span style="margin-left:auto;display:flex;gap:8px;">
+        <button class="btn btn-outline btn-sm" onclick="document.getElementById('importFile').click()">📂 匯入 Excel/CSV</button>
+        <input type="file" id="importFile" accept=".xlsx,.xls,.csv" style="display:none" onchange="importFile(event)">
+        <button class="btn btn-outline btn-sm" onclick="exportExcel()">💾 匯出 Excel</button>
+      </span>
+    </div>
+  </div>
+
+  <!-- 篩選 + 列表 -->
+  <div class="card">
+    <div class="card-title">工時紀錄</div>
+    <div class="filter-row" style="margin-bottom:14px;">
+      <div class="form-group" style="margin:0;">
+        <label>搜尋</label>
+        <input type="text" id="filterSearch" placeholder="案件、客戶、律師..." oninput="renderEntries()">
+      </div>
+      <div class="form-group" style="margin:0;">
+        <label>月份</label>
+        <input type="month" id="filterMonth" oninput="renderEntries()">
+      </div>
+      <div class="form-group" style="margin:0;">
+        <label>律師</label>
+        <select id="filterAttorney" onchange="renderEntries()"><option value="">全部</option></select>
+      </div>
+      <button class="btn btn-outline btn-sm" onclick="clearFilter()" style="margin-top:18px;">清除篩選</button>
+      <span id="batchBar" style="display:none;margin-left:auto;display:flex;align-items:center;gap:8px;margin-top:18px;">
+        <span id="selectedCount" style="font-size:12px;color:var(--muted);"></span>
+        <button class="btn btn-danger btn-sm" onclick="batchDelete()">🗑 刪除所選</button>
+      </span>
+    </div>
+    <div class="table-wrap">
+      <table id="entriesTable">
+        <thead>
+          <tr>
+            <th style="width:36px;"><input type="checkbox" id="checkAll" title="全選" onchange="toggleCheckAll(this)"></th>
+            <th>日期</th><th>案件名稱</th><th>客戶</th><th>律師</th><th>類型</th><th>工作內容</th><th>時數</th><th>金額</th><th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="entriesBody"></tbody>
+      </table>
+    </div>
+    <div id="entriesEmpty" class="empty" style="display:none;">
+      <div class="empty-icon">📋</div>
+      <p>尚無工時紀錄。請新增或匯入資料。</p>
+    </div>
+    <div id="tableFooter" style="margin-top:12px;text-align:right;font-size:12px;color:var(--muted);"></div>
+  </div>
+
+  <!-- 批次上傳說明 -->
+  <div class="card">
+    <div class="card-title">匯入格式說明</div>
+    <div class="alert alert-info">📌 Excel/CSV 欄位順序：案件名稱、客戶名稱、承辦律師、工作日期 (YYYY-MM-DD)、時數、費率、工作說明、摘要（選填）、備註（選填）</div>
+    <div class="upload-zone" id="uploadZone" onclick="document.getElementById('importFile').click()" ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="dropFile(event)">
+      <div class="icon">📂</div>
+      <p><strong>點擊選擇檔案</strong>或拖曳至此</p>
+      <p style="margin-top:6px;">支援 .xlsx、.xls、.csv</p>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 判決查詢 ===== -->
+<div class="section" id="section-judgment">
+
+  <div class="card">
+    <div class="card-title">快速搜尋判決</div>
+    <div class="search-box">
+      <input type="text" id="jKeyword" placeholder="輸入關鍵字、案號或法條..." onkeydown="if(event.key==='Enter') searchJudgment()">
+      <button class="btn btn-primary" onclick="searchJudgment()">🔍 搜尋</button>
+    </div>
+
+    <!-- 快速案號輸入 -->
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px;">
+      <span style="font-size:12px;color:var(--muted);font-weight:600;">案號組合：</span>
+      <select id="jCourt" style="width:130px;font-size:12px;padding:6px 8px;">
+        <option value="">選擇法院</option>
+        <option value="最高法院">最高法院</option>
+        <option value="最高行政法院">最高行政法院</option>
+        <option value="臺灣高等法院">臺灣高等法院</option>
+        <option value="臺北高等行政法院">臺北高等行政法院</option>
+        <option value="臺灣臺北地方法院">臺北地方法院</option>
+        <option value="臺灣新北地方法院">新北地方法院</option>
+        <option value="臺灣桃園地方法院">桃園地方法院</option>
+        <option value="臺灣臺中地方法院">臺中地方法院</option>
+        <option value="臺灣臺南地方法院">臺南地方法院</option>
+        <option value="臺灣高雄地方法院">高雄地方法院</option>
+      </select>
+      <input type="text" id="jYear" placeholder="年份 (如 114)" style="width:100px;font-size:12px;padding:6px 8px;">
+      <input type="text" id="jType" placeholder="字別 (如 台上)" style="width:90px;font-size:12px;padding:6px 8px;">
+      <input type="text" id="jNo" placeholder="號次" style="width:70px;font-size:12px;padding:6px 8px;">
+      <button class="btn btn-outline btn-sm" onclick="searchByCaseNo()">查詢案號</button>
+    </div>
+
+    <!-- 常用字別 -->
+    <div style="margin-bottom:14px;">
+      <div style="font-size:12px;color:var(--muted);font-weight:600;margin-bottom:8px;">常用字別快選：</div>
+      <div class="case-type-grid">
+        <div class="case-type-btn" onclick="setType('台上')">台上</div>
+        <div class="case-type-btn" onclick="setType('台抗')">台抗</div>
+        <div class="case-type-btn" onclick="setType('上')">上</div>
+        <div class="case-type-btn" onclick="setType('上易')">上易</div>
+        <div class="case-type-btn" onclick="setType('勞上')">勞上</div>
+        <div class="case-type-btn" onclick="setType('重勞上')">重勞上</div>
+        <div class="case-type-btn" onclick="setType('建上')">建上</div>
+        <div class="case-type-btn" onclick="setType('家上')">家上</div>
+        <div class="case-type-btn" onclick="setType('訴')">訴</div>
+        <div class="case-type-btn" onclick="setType('勞訴')">勞訴</div>
+        <div class="case-type-btn" onclick="setType('重訴')">重訴</div>
+        <div class="case-type-btn" onclick="setType('家訴')">家訴</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 搜尋平台 -->
+  <div class="card">
+    <div class="card-title">選擇查詢平台</div>
+    <div id="platformAlert" class="alert alert-warn" style="display:none;">⚠️ 請先輸入搜尋關鍵字或案號</div>
+    <div class="platform-grid">
+      <a class="platform-btn" id="link-judicial" href="#" target="_blank" onclick="return openPlatform('judicial')">
+        <div class="platform-icon" style="background:#fff0f0;">⚖️</div>
+        <div class="platform-info">
+          <div class="name">司法院裁判書</div>
+          <div class="desc">官方全文查詢系統</div>
+        </div>
+      </a>
+      <a class="platform-btn" id="link-lawsnote" href="#" target="_blank" onclick="return openPlatform('lawsnote')">
+        <div class="platform-icon" style="background:#f0f7ff;">🔬</div>
+        <div class="platform-info">
+          <div class="name">Lawsnote</div>
+          <div class="desc">AI語意搜尋 + 法規整合</div>
+        </div>
+      </a>
+      <a class="platform-btn" id="link-twlawbot" href="#" target="_blank" onclick="return openPlatform('twlawbot')">
+        <div class="platform-icon" style="background:#f0fff4;">🤖</div>
+        <div class="platform-info">
+          <div class="name">TWLawBot</div>
+          <div class="desc">AI法學資料搜尋引擎</div>
+        </div>
+      </a>
+      <a class="platform-btn" id="link-lawchat" href="#" target="_blank" onclick="return openPlatform('lawchat')">
+        <div class="platform-icon" style="background:#fdf4ff;">💬</div>
+        <div class="platform-info">
+          <div class="name">LawChat</div>
+          <div class="desc">AI法律對話查詢</div>
+        </div>
+      </a>
+      <a class="platform-btn" id="link-laws" href="#" target="_blank" onclick="return openPlatform('laws')">
+        <div class="platform-icon" style="background:#fffbeb;">📖</div>
+        <div class="platform-info">
+          <div class="name">全國法規資料庫</div>
+          <div class="desc">現行法規條文查詢</div>
+        </div>
+      </a>
+      <a class="platform-btn" href="https://lawbot.tw" target="_blank">
+        <div class="platform-icon" style="background:#f0fdf4;">🏛️</div>
+        <div class="platform-info">
+          <div class="name">LawBot.tw</div>
+          <div class="desc">台灣法律AI助理</div>
+        </div>
+      </a>
+    </div>
+  </div>
+
+  <!-- 搜尋紀錄 -->
+  <div class="card">
+    <div class="card-title">最近搜尋紀錄</div>
+    <ul class="history-list" id="searchHistory">
+      <li style="color:var(--muted);font-size:13px;text-align:center;padding:20px;">尚無搜尋紀錄</li>
+    </ul>
+    <button class="btn btn-outline btn-sm" onclick="clearHistory()" style="margin-top:12px;">清除紀錄</button>
+  </div>
+</div>
+
+<!-- ===== 統計報表 ===== -->
+<div class="section" id="section-report">
+  <div class="card">
+    <div class="card-title">報表設定</div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;">
+      <div class="form-group" style="margin:0;">
+        <label>報表月份</label>
+        <input type="month" id="rptMonth">
+      </div>
+      <div class="form-group" style="margin:0;">
+        <label>律師篩選</label>
+        <select id="rptAttorney"><option value="">全部律師</option></select>
+      </div>
+      <button class="btn btn-primary" onclick="renderReport()">產生報表</button>
+      <button class="btn btn-outline" onclick="exportReport()">💾 匯出 Excel</button>
+    </div>
+  </div>
+
+  <div id="reportContent"></div>
+</div>
+
+<!-- ===== 請款單 ===== -->
+<div class="section" id="section-invoice">
+
+  <div class="card">
+    <div class="card-title">請款單設定</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>案件名稱 *</label>
+        <select id="inv-case" onchange="invCaseChange()"><option value="">-- 選擇案件 --</option></select>
+      </div>
+      <div class="form-group">
+        <label>請款日期 *</label>
+        <input type="date" id="inv-date">
+      </div>
+      <div class="form-group">
+        <label>統計期間起 *</label>
+        <input type="date" id="inv-from" onchange="invCalc()">
+      </div>
+      <div class="form-group">
+        <label>統計期間迄 *</label>
+        <input type="date" id="inv-to-dt" onchange="invCalc()">
+      </div>
+      <div class="form-group">
+        <label>客戶稱謂（TO）</label>
+        <input type="text" id="inv-client" placeholder="例：李韋宏先生">
+      </div>
+      <div class="form-group">
+        <label>案號</label>
+        <input type="text" id="inv-caseno" placeholder="例：21C001Y">
+      </div>
+      <div class="form-group">
+        <label>聘任期間起</label>
+        <input type="date" id="inv-hire-from">
+      </div>
+      <div class="form-group">
+        <label>聘任期間迄</label>
+        <input type="date" id="inv-hire-to">
+      </div>
+      <div class="form-group full">
+        <label>案件說明（請款單摘要欄）</label>
+        <input type="text" id="inv-desc" placeholder="例：台端與袁瑋澤間財產分配協議事宜">
+      </div>
+      <div class="form-group">
+        <label>費率（元/小時）</label>
+        <input type="number" id="inv-rate" value="7000" step="500" oninput="invCalc()">
+      </div>
+      <div class="form-group">
+        <label>前期結餘時數</label>
+        <input type="number" id="inv-prev" value="0" step="0.1" oninput="invCalc()">
+      </div>
+      <div class="form-group">
+        <label>折扣（%，留空無折扣）</label>
+        <input type="number" id="inv-disc" placeholder="例：80（八折）" min="1" max="100" oninput="invCalc()">
+      </div>
+      <div class="form-group full">
+        <label>折扣說明（顯示於請款單）</label>
+        <input type="text" id="inv-disc-note" placeholder="例：依廖郁晴律師指示特別予以八折優惠">
+      </div>
+      <div class="form-group">
+        <label>請款單號前綴</label>
+        <input type="text" id="inv-prefix" value="YU" style="width:80px;">
+      </div>
+    </div>
+
+    <!-- 計算結果 -->
+    <div class="inv-calc-box" id="invCalcBox" style="display:none;">
+      <div class="inv-calc-grid" id="invCalcGrid"></div>
+    </div>
+
+    <div class="btn-row" style="margin-top:18px;">
+      <button class="btn btn-primary" onclick="generateInvoice()">📄 產生請款單</button>
+      <button class="btn btn-outline" onclick="generateHoursReport()">📋 產生時數報告</button>
+      <button class="btn btn-gold" onclick="printBoth()" style="margin-left:auto;">🖨️ 兩份一起列印</button>
+    </div>
+  </div>
+
+  <!-- 請款單預覽 -->
+  <div id="invPreviewCard" class="card" style="display:none;">
+    <div class="card-title" style="justify-content:space-between;">
+      <span>請款單預覽</span>
+      <span style="display:flex;gap:8px;">
+        <button class="btn btn-outline btn-sm" onclick="downloadWord('inv')">📥 下載 Word</button>
+        <button class="btn btn-gold btn-sm" onclick="printDoc('inv')">🖨️ 列印 / 存 PDF</button>
+      </span>
+    </div>
+    <div class="inv-doc-wrap">
+      <div id="invDoc" style="background:white;"></div>
+    </div>
+  </div>
+
+  <!-- 時數報告預覽 -->
+  <div id="rptPreviewCard" class="card" style="display:none;">
+    <div class="card-title" style="justify-content:space-between;">
+      <span>時數報告預覽（附件）</span>
+      <span style="display:flex;gap:8px;">
+        <button class="btn btn-outline btn-sm" onclick="downloadWord('rpt')">📥 下載 Word</button>
+        <button class="btn btn-gold btn-sm" onclick="printDoc('rpt')">🖨️ 列印 / 存 PDF</button>
+      </span>
+    </div>
+    <div class="inv-doc-wrap">
+      <div id="rptDoc" style="background:white;"></div>
+    </div>
+  </div>
+
+</div>
+
+</main>
+
+<!-- 編輯 Modal -->
+<div class="modal-overlay" id="editModal" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-title">✏️ 編輯工時紀錄</div>
+    <div class="form-grid">
+      <input type="hidden" id="e-id">
+      <div class="form-group"><label>案件名稱</label><input type="text" id="e-case"></div>
+      <div class="form-group"><label>客戶名稱</label><input type="text" id="e-client"></div>
+      <div class="form-group"><label>律師</label><input type="text" id="e-attorney"></div>
+      <div class="form-group"><label>日期</label><input type="date" id="e-date"></div>
+      <div class="form-group">
+        <label>計費類型</label>
+        <select id="e-billingType" onchange="editTypeChange()">
+          <option value="計時">計時</option>
+          <option value="顧問">顧問</option>
+          <option value="定額">定額</option>
+          <option value="無酬">無酬</option>
+        </select>
+      </div>
+      <!-- 計時欄位 -->
+      <div class="form-group" id="e-hours-group"><label>時數 (h)</label><input type="number" id="e-hours" min="0" step="0.1"></div>
+      <div class="form-group" id="e-rate-group"><label>費率 (元/時)</label><input type="number" id="e-rate" step="500"></div>
+      <!-- 顧問費欄位 -->
+      <div class="form-group" id="e-retainer-group" style="display:none;"><label>顧問費 (元)</label><input type="number" id="e-retainer" step="1000"></div>
+      <!-- 定額欄位 -->
+      <div class="form-group" id="e-fixedfee-group" style="display:none;"><label>定額費用 (元)</label><input type="number" id="e-fixedfee" step="1000"></div>
+      <div class="form-group"><label>摘要（時數報告用）</label><input type="text" id="e-summary" placeholder="例：確認事宜"></div>
+      <div class="form-group full"><label>工作說明</label><textarea id="e-desc"></textarea></div>
+      <div class="form-group full"><label>備註</label><input type="text" id="e-notes"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal()">取消</button>
+      <button class="btn btn-primary" onclick="saveEdit()">儲存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===================== STATE =====================
+let entries = JSON.parse(localStorage.getItem('wh_time_entries') || '[]');
+let searchHistoryData = JSON.parse(localStorage.getItem('wh_search_history') || '[]');
+
+// 若無資料則載入示範紀錄
+function loadDemoData() {
+  if(entries.length > 0) return;
+  const m = today().slice(0,7);
+  entries = [
+    {id:uuid(),caseName:'ABC公司股權交易案',client:'ABC股份有限公司',attorney:'廖郁晴',date:m+'-05',hours:3.5,rate:6000,summary:'審閱契約',description:'審閱股權轉讓協議第3-8條，研析交割前提條件合規性，提出修訂意見三點',notes:''},
+    {id:uuid(),caseName:'ABC公司股權交易案',client:'ABC股份有限公司',attorney:'廖郁晴',date:m+'-08',hours:2.0,rate:6000,summary:'會議',description:'與客戶電話會議，討論競業禁止條款修正方向，準備談判要點備忘錄',notes:'電話會議45分鐘'},
+    {id:uuid(),caseName:'勞資爭議調解案',client:'XX科技有限公司',attorney:'廖郁晴',date:m+'-10',hours:1.5,rate:5000,summary:'出席調解',description:'出席勞動局調解會議，協助當事人主張資遣費計算基準',notes:'調解成立'},
+    {id:uuid(),caseName:'商標侵權民事訴訟',client:'YY品牌公司',attorney:'廖郁晴',date:m+'-12',hours:4.0,rate:6000,summary:'撰寫書狀',description:'撰寫民事起訴狀草稿，整理侵權事證清單，研析最高法院相關判決',notes:'預計本週提出'},
+    {id:uuid(),caseName:'商標侵權民事訴訟',client:'YY品牌公司',attorney:'廖郁晴',date:m+'-15',hours:1.0,rate:6000,summary:'開庭準備',description:'開庭前準備，確認書狀內容及附件',notes:''},
+  ];
+  save();
+}
+
+// ===================== INIT =====================
+document.addEventListener('DOMContentLoaded', () => {
+  loadDemoData();
+  document.getElementById('f-date').value = today();
+  renderEntries();
+  renderStats();
+  renderHistory();
+  updateDataLists();
+  updateAttorneyFilter();
+  setDefaultMonth();
+  setInterval(() => {
+    const d = new Date();
+    document.getElementById('clock').textContent =
+      d.toLocaleDateString('zh-TW') + ' ' + d.toLocaleTimeString('zh-TW', {hour:'2-digit',minute:'2-digit'});
+  }, 1000);
+});
+
+function today() {
+  return new Date().toISOString().slice(0,10);
+}
+
+function setDefaultMonth() {
+  const m = new Date().toISOString().slice(0,7);
+  document.getElementById('rptMonth').value = m;
+  // filterMonth 不預設，讓新使用者能看到全部紀錄
+}
+
+// ===================== TABS =====================
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  const tabs = ['time','judgment','report','invoice'];
+  document.querySelectorAll('.tab')[tabs.indexOf(tab)].classList.add('active');
+  document.getElementById('section-'+tab).classList.add('active');
+  if(tab==='report') renderReport();
+  if(tab==='invoice') initInvoice();
+}
+
+// ===================== TIME ENTRIES =====================
+function save() {
+  localStorage.setItem('wh_time_entries', JSON.stringify(entries));
+}
+
+function uuid() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2);
+}
+
+function addEntry() {
+  const caseName = document.getElementById('f-case').value.trim();
+  const date = document.getElementById('f-date').value;
+  const hours = parseFloat(document.getElementById('f-hours').value);
+  const desc = document.getElementById('f-desc').value.trim();
+  const attorney = document.getElementById('f-attorney').value.trim();
+
+  if(!caseName || !date || !hours || !desc || !attorney) {
+    alert('請填寫必填欄位：案件名稱、日期、時數、律師、工作內容');
+    return;
+  }
+
+  const entry = {
+    id: uuid(),
+    caseName,
+    client: document.getElementById('f-client').value.trim(),
+    attorney,
+    date,
+    hours,
+    rate: parseFloat(document.getElementById('f-rate').value) || 0,
+    summary: document.getElementById('f-summary').value.trim(),
+    description: desc,
+    notes: document.getElementById('f-notes').value.trim()
+  };
+
+  entries.unshift(entry);
+  save();
+  clearForm();
+  renderEntries();
+  renderStats();
+  updateDataLists();
+  updateAttorneyFilter();
+}
+
+function clearForm() {
+  ['f-case','f-client','f-attorney','f-hours','f-rate','f-summary','f-desc','f-notes'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('f-date').value = today();
+}
+
+function deleteEntry(id) {
+  if(!confirm('確定刪除此筆紀錄？')) return;
+  entries = entries.filter(e => e.id !== id);
+  save();
+  renderEntries();
+  renderStats();
+}
+
+// 計費類型切換：對齊參考檔原則——時數欄所有類型均顯示
+function editTypeChange() {
+  const bt = document.getElementById('e-billingType').value;
+  document.getElementById('e-hours-group').style.display    = '';                              // 所有類型均記錄時數
+  document.getElementById('e-rate-group').style.display     = (bt === '定額' || bt === '無酬') ? 'none' : ''; // 計時/顧問顯示費率
+  document.getElementById('e-retainer-group').style.display = 'none';                         // 顧問用時數×費率，不需獨立欄
+  document.getElementById('e-fixedfee-group').style.display = bt === '定額' ? '' : 'none';   // 定額顯示固定金額
+}
+
+function openEdit(id) {
+  const e = entries.find(x => x.id === id);
+  if(!e) return;
+  document.getElementById('e-id').value = e.id;
+  document.getElementById('e-case').value = e.caseName;
+  document.getElementById('e-client').value = e.client || '';
+  document.getElementById('e-attorney').value = e.attorney || '';
+  document.getElementById('e-date').value = e.date;
+  document.getElementById('e-billingType').value = e.billingType || '計時';
+  document.getElementById('e-hours').value = e.hours || '';
+  document.getElementById('e-rate').value = e.rate || '';
+  document.getElementById('e-retainer').value = e.retainer || '';
+  document.getElementById('e-fixedfee').value = e.fixedFee || '';
+  document.getElementById('e-summary').value = e.summary || '';
+  document.getElementById('e-desc').value = e.description || '';
+  document.getElementById('e-notes').value = e.notes || '';
+  editTypeChange(); // 同步欄位顯示狀態
+  document.getElementById('editModal').classList.add('open');
+}
+
+function saveEdit() {
+  const id = document.getElementById('e-id').value;
+  const idx = entries.findIndex(x => x.id === id);
+  if(idx < 0) return;
+  const bt = document.getElementById('e-billingType').value;
+  const prev = entries[idx];
+  entries[idx] = {
+    ...prev,
+    caseName:    document.getElementById('e-case').value.trim(),
+    client:      document.getElementById('e-client').value.trim(),
+    attorney:    document.getElementById('e-attorney').value.trim(),
+    date:        document.getElementById('e-date').value,
+    billingType: bt,
+    hours:       bt === '計時' ? (parseFloat(document.getElementById('e-hours').value) || 0) : 0,
+    rate:        bt === '計時' ? (parseFloat(document.getElementById('e-rate').value) || 0) : 0,
+    retainer:    bt === '顧問' ? (parseFloat(document.getElementById('e-retainer').value) || 0) : 0,
+    fixedFee:    bt === '定額' ? (parseFloat(document.getElementById('e-fixedfee').value) || 0) : 0,
+    summary:     document.getElementById('e-summary').value.trim(),
+    description: document.getElementById('e-desc').value.trim(),
+    notes:       document.getElementById('e-notes').value.trim()
+  };
+  save();
+  closeModal();
+  renderEntries();
+  renderStats();
+}
+
+function closeModal() {
+  document.getElementById('editModal').classList.remove('open');
+}
+
+// ===================== RENDER ENTRIES =====================
+function getFiltered() {
+  const search = document.getElementById('filterSearch').value.toLowerCase();
+  const month = document.getElementById('filterMonth').value;
+  const attorney = document.getElementById('filterAttorney').value;
+  return entries.filter(e => {
+    if(search && !e.caseName.toLowerCase().includes(search) &&
+       !e.client?.toLowerCase().includes(search) &&
+       !e.attorney.toLowerCase().includes(search) &&
+       !e.description.toLowerCase().includes(search)) return false;
+    if(month && !e.date.startsWith(month)) return false;
+    if(attorney && e.attorney !== attorney) return false;
+    return true;
+  });
+}
+
+function renderEntries() {
+  const list = getFiltered();
+  const tbody = document.getElementById('entriesBody');
+  const empty = document.getElementById('entriesEmpty');
+  const footer = document.getElementById('tableFooter');
+  if(!list.length) {
+    tbody.innerHTML = '';
+    empty.style.display = 'block';
+    footer.textContent = '';
+    return;
+  }
+  empty.style.display = 'none';
+  const totalH = list.reduce((s,e)=>s+(e.hours||0),0);
+  const totalAmt = list.reduce((s,e)=>s+calcAmt(e),0);
+  const byType = list.reduce((m,e)=>{ const t=e.billingType||'計時'; m[t]=(m[t]||0)+1; return m; },{});
+  const typeStr = Object.entries(byType).map(([t,n])=>`${t} ${n} 筆`).join(' | ');
+  footer.textContent = `共 ${list.length} 筆（${typeStr}）| 計時合計 ${totalH.toFixed(1)} 小時${totalAmt>0?' | 金額 '+fmtNum(totalAmt)+' 元':''}`;
+
+  // 重設全選 checkbox
+  const checkAll = document.getElementById('checkAll');
+  if(checkAll) checkAll.checked = false;
+  updateBatchBar();
+
+  const typeColor = {計時:'badge-blue', 顧問:'badge-green', 定額:'badge-gray', 無酬:'badge-gray'};
+  tbody.innerHTML = list.map(e => {
+    const bt = e.billingType || '計時';
+    const a = calcAmt(e);
+    const amt = a > 0 ? fmtNum(Math.round(a)) + ' 元' : '-';
+    const descShort = (e.description||e.summary||'').slice(0,38) + ((e.description||e.summary||'').length>38?'…':'');
+    return `<tr>
+      <td><input type="checkbox" class="row-check" value="${e.id}" onchange="updateBatchBar()"></td>
+      <td>${e.date}</td>
+      <td><span class="badge badge-blue">${esc(e.caseName)}</span></td>
+      <td>${esc(e.client||'-')}</td>
+      <td>${esc(e.attorney||'-')}</td>
+      <td><span class="badge ${typeColor[bt]||'badge-gray'}">${bt}</span></td>
+      <td title="${esc(e.description||'')}">${esc(descShort)}</td>
+      <td class="hours-cell">${e.hours>0?e.hours+'h':'-'}</td>
+      <td>${amt}</td>
+      <td style="white-space:nowrap;">
+        <button class="btn btn-outline btn-sm" onclick="openEdit('${e.id}')">編輯</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteEntry('${e.id}')">刪</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function clearFilter() {
+  document.getElementById('filterSearch').value = '';
+  document.getElementById('filterMonth').value = new Date().toISOString().slice(0,7);
+  document.getElementById('filterAttorney').value = '';
+  renderEntries();
+}
+
+function toggleCheckAll(cb) {
+  document.querySelectorAll('.row-check').forEach(c => c.checked = cb.checked);
+  updateBatchBar();
+}
+
+function getCheckedIds() {
+  return [...document.querySelectorAll('.row-check:checked')].map(c => c.value);
+}
+
+function updateBatchBar() {
+  const ids = getCheckedIds();
+  const bar = document.getElementById('batchBar');
+  const cnt = document.getElementById('selectedCount');
+  if(ids.length > 0) {
+    bar.style.display = 'flex';
+    cnt.textContent = `已選 ${ids.length} 筆`;
+  } else {
+    bar.style.display = 'none';
+  }
+  // 同步全選 checkbox 狀態
+  const all = document.querySelectorAll('.row-check');
+  const checkAll = document.getElementById('checkAll');
+  if(checkAll && all.length) checkAll.checked = all.length === ids.length;
+}
+
+function batchDelete() {
+  const ids = getCheckedIds();
+  if(!ids.length) return;
+  if(!confirm(`確定刪除所選 ${ids.length} 筆工時紀錄？此操作無法復原。`)) return;
+  const idSet = new Set(ids);
+  entries = entries.filter(e => !idSet.has(e.id));
+  save();
+  renderEntries();
+  renderStats();
+}
+
+// 各計費類型的金額計算（對齊參考檔原則）
+function calcAmt(e) {
+  const bt = e.billingType || '計時';
+  if(bt === '計時' || bt === '顧問') return (e.hours || 0) * (e.rate || 0);
+  if(bt === '定額') return e.fixedAmount || e.fixedFee || 0; // fixedFee 相容舊資料
+  return 0; // 無酬
+}
+
+// ===================== STATS =====================
+function renderStats() {
+  const now = new Date();
+  const month = now.toISOString().slice(0,7);
+  const year  = String(now.getFullYear());
+
+  const thisMonth = entries.filter(e => e.date.startsWith(month));
+  const thisYear  = entries.filter(e => e.date.startsWith(year));
+
+  const monthH   = thisMonth.reduce((s,e) => s + (e.hours||0), 0);
+  const yearH    = thisYear.reduce((s,e)  => s + (e.hours||0), 0);
+  const monthAmt = thisMonth.reduce((s,e) => s + calcAmt(e), 0);
+  const cases    = [...new Set(thisMonth.map(e => e.caseName))].length;
+  const allH     = entries.reduce((s,e) => s + (e.hours||0), 0);
+
+  document.getElementById('statsBar').innerHTML = `
+    <div class="stat"><div class="stat-label">本月總工時</div><div class="stat-value">${monthH.toFixed(1)}</div><div class="stat-sub">小時（${month}）</div></div>
+    <div class="stat"><div class="stat-label">年度累計工時</div><div class="stat-value">${yearH.toFixed(1)}</div><div class="stat-sub">小時（${year} 年）</div></div>
+    <div class="stat"><div class="stat-label">本月案件數</div><div class="stat-value">${cases}</div><div class="stat-sub">件</div></div>
+    <div class="stat"><div class="stat-label">本月計費金額</div><div class="stat-value">${monthAmt>0?fmtNum(Math.round(monthAmt)):'-'}</div><div class="stat-sub">${monthAmt>0?'新台幣（元）':'-'}</div></div>
+    <div class="stat"><div class="stat-label">累計總工時</div><div class="stat-value">${allH.toFixed(1)}</div><div class="stat-sub">小時 / ${entries.length} 筆</div></div>
+  `;
+}
+
+// ===================== AUTOCOMPLETE =====================
+function updateDataLists() {
+  const cases = [...new Set(entries.map(e=>e.caseName))];
+  const clients = [...new Set(entries.map(e=>e.client).filter(Boolean))];
+  const attorneys = [...new Set(entries.map(e=>e.attorney))];
+  document.getElementById('caseList').innerHTML = cases.map(c=>`<option value="${esc(c)}">`).join('');
+  document.getElementById('clientList').innerHTML = clients.map(c=>`<option value="${esc(c)}">`).join('');
+  document.getElementById('attorneyList').innerHTML = attorneys.map(a=>`<option value="${esc(a)}">`).join('');
+}
+
+function updateAttorneyFilter() {
+  const attorneys = [...new Set(entries.map(e=>e.attorney))];
+  const sel1 = document.getElementById('filterAttorney');
+  const sel2 = document.getElementById('rptAttorney');
+  const curVal1 = sel1.value, curVal2 = sel2.value;
+  [sel1,sel2].forEach(sel => {
+    const opts = '<option value="">全部</option>' + attorneys.map(a=>`<option value="${esc(a)}">${esc(a)}</option>`).join('');
+    sel.innerHTML = opts;
+  });
+  sel1.value = curVal1;
+  sel2.value = curVal2;
+}
+
+// ===================== IMPORT =====================
+function importFile(event) {
+  const file = event.target.files[0];
+  if(!file) return;
+  readAndParse(file);
+  event.target.value = '';
+}
+
+function dragOver(e) { e.preventDefault(); document.getElementById('uploadZone').classList.add('drag'); }
+function dragLeave(e) { document.getElementById('uploadZone').classList.remove('drag'); }
+function dropFile(e) {
+  e.preventDefault();
+  document.getElementById('uploadZone').classList.remove('drag');
+  const file = e.dataTransfer.files[0];
+  if(file) readAndParse(file);
+}
+
+function readAndParse(file) {
+  const isCsv = /\.csv$/i.test(file.name);
+  const reader = new FileReader();
+  reader.onerror = () => alert('檔案讀取失敗，請確認檔案未損毀。');
+  if(isCsv) {
+    // 先嘗試 UTF-8，再 fallback 到 Big5
+    reader.onload = e => {
+      let text = e.target.result;
+      // 移除 BOM
+      if(text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+      parseImport(parseCsv(text), file.name);
+    };
+    reader.readAsText(file, 'UTF-8');
+  } else {
+    reader.onload = e => {
+      try {
+        const wb = XLSX.read(e.target.result, {type:'array', cellDates:true, dateNF:'yyyy-mm-dd'});
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, {header:1, raw:true, dateNF:'yyyy-mm-dd'});
+        parseImport(rows, file.name);
+      } catch(err) {
+        alert('Excel 解析失敗：' + err.message + '\n請確認檔案格式正確（.xlsx / .xls）。');
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+}
+
+// RFC 4180 相容的 CSV 解析器（處理引號內逗號、換行、\r\n）
+function parseCsv(text) {
+  const rows = [];
+  let row = [], field = '', inQuote = false;
+  const flush = () => { row.push(field); field = ''; };
+  for(let i = 0; i < text.length; i++) {
+    const ch = text[i], next = text[i+1];
+    if(inQuote) {
+      if(ch === '"' && next === '"') { field += '"'; i++; }        // escaped quote
+      else if(ch === '"') { inQuote = false; }                      // end quote
+      else { field += ch; }
+    } else {
+      if(ch === '"') { inQuote = true; }
+      else if(ch === ',') { flush(); }
+      else if(ch === '\r' && next === '\n') { flush(); rows.push(row); row = []; i++; }
+      else if(ch === '\r' || ch === '\n') { flush(); rows.push(row); row = []; }
+      else { field += ch; }
+    }
+  }
+  flush();
+  if(row.length > 1 || row[0]) rows.push(row);
+  return rows;
+}
+
+// 依標題名稱猜測欄位索引
+function detectColumns(headerRow) {
+  const h = headerRow.map(c => String(c||'').toLowerCase().trim());
+  const find = (...kws) => { const i = h.findIndex(c => kws.some(k => c.includes(k))); return i >= 0 ? i : null; };
+  return {
+    caseName    : find('案件名稱','案件','matter','case name','case'),
+    client      : find('客戶名稱','客戶','client'),
+    opponent    : find('對造','opponent'),
+    attorney    : find('承辦律師','律師','attorney','timekeeper','lawyer','initial'),
+    date        : find('工作日期','日期','date','work date','service date'),
+    hours       : find('計時','時數','小時','hours','duration','hrs','計費時數','billable'),
+    retainer    : find('顧問','annual','retainer'),
+    fixedFee    : find('定額','fix fee','fixed'),
+    nonBill     : find('無酬','non-bill','pro bono'),
+    disbursement: find('事務費','disburs'),
+    amount      : find('amount','金額'),
+    rate        : find('費率','rate','hourly'),
+    description : find('工作說明','說明','工作內容','description','narrative','memo','備忘','detail'),
+    summary     : find('摘要','工作摘要','work summary','summary','subject'),
+    notes       : find('備註','remark','note'),
+  };
+}
+
+function parseImport(rows, filename) {
+  // 找標題列（第一個非空行）
+  let headerIdx = 0;
+  while(headerIdx < rows.length && (!rows[headerIdx] || !rows[headerIdx].some(c => c?.toString().trim()))) headerIdx++;
+  if(headerIdx >= rows.length) { alert('檔案無內容，請確認檔案格式。'); return; }
+
+  const headerRow = rows[headerIdx];
+  const col = detectColumns(headerRow);
+
+  // 若找不到日期或時數欄，顯示偵測結果供除錯
+  if(col.date === null || col.hours === null) {
+    const hStr = headerRow.map((c,i)=>`[${i}] ${c}`).join('\n');
+    alert(`找不到必要欄位（日期或時數）。\n\n偵測到的標題列：\n${hStr}\n\n請確認標題包含「日期」「時數」或英文對應欄名。`);
+    return;
+  }
+
+  const dataRows = rows.slice(headerIdx + 1).filter(r => r.length > 1 && r.some(c => c?.toString().trim()));
+  if(!dataRows.length) { alert('標題列下方無資料列。'); return; }
+
+  let added = 0, skipped = 0;
+  const skipReasons = [];
+  const debugEntries = []; // 調試：記錄每一列的判定結果
+
+  // 合併儲存格繼承：記錄上一筆有效值
+  let lastCaseName = '', lastClient = '', lastOpponent = '', lastAttorney = '', lastDate = '';
+
+  dataRows.forEach((r, idx) => {
+    const rowNum = headerIdx + idx + 2;
+    const get = (i) => (i !== null && i !== undefined && r[i] !== undefined && r[i] !== null) ? String(r[i]).trim() : '';
+    // 取原始值（數字不先轉字串，供 parseHours 判斷 Excel 時間格式）
+    const getRaw = (i) => (i !== null && i !== undefined && r[i] !== undefined && r[i] !== null) ? r[i] : '';
+
+    // 取原始值
+    const rawCaseName  = get(col.caseName);
+    const rawClient    = get(col.client);
+    const rawAttorney  = get(col.attorney);
+    const rawDateRaw   = (col.date !== null && r[col.date] !== undefined && r[col.date] !== null) ? r[col.date] : '';
+
+    // 關鍵篩選：客戶或律師至少有一個原始值
+    // 這樣能確保合計列（客戶和律師都空）被排除，同時允許合併儲存格的行被正常處理
+    if(!rawClient && !rawAttorney) { skipped++; return; }
+
+    // 案件名稱若為空則繼承上一列
+    const caseName = rawCaseName || lastCaseName;
+    if(!caseName) { skipped++; return; }
+    lastCaseName = caseName;
+
+    // 日期可以繼承；客戶、律師、對造使用原始值
+    const dateValid = parseDate(rawDateRaw) || lastDate;
+    if(!dateValid) { skipped++; skipReasons.push(`第 ${rowNum} 列：日期無法識別`); return; }
+    if(parseDate(rawDateRaw)) lastDate = dateValid; // 只有新日期時才更新
+
+    const client   = rawClient || lastClient; if(rawClient) lastClient = rawClient;
+    const opponent = get(col.opponent) || lastOpponent; if(get(col.opponent)) lastOpponent = get(col.opponent);
+    const attorney = rawAttorney || lastAttorney; if(rawAttorney) lastAttorney = rawAttorney;
+    const date = dateValid;
+
+    // 各類型各有獨立時數欄（傳遞原始值以正確處理 Excel 時間格式）
+    const hrsHourly   = parseHours(getRaw(col.hours));
+    const hrsRetainer = parseHours(getRaw(col.retainer));
+    const hrsFixed    = parseHours(getRaw(col.fixedFee));
+    const hrsNonBill  = parseHours(getRaw(col.nonBill));
+
+    // 判斷計費類型：依哪個時數欄有值決定
+    let billingType, hours;
+    if     (hrsRetainer > 0) { billingType = '顧問'; hours = hrsRetainer; }
+    else if(hrsFixed    > 0) { billingType = '定額'; hours = hrsFixed; }
+    else if(hrsNonBill  > 0) { billingType = '無酬'; hours = hrsNonBill; }
+    else if(hrsHourly   > 0) { billingType = '計時'; hours = hrsHourly; }
+    else {
+      // 四欄均空：若有事務費則仍匯入為計時 0 時數；否則略過
+      const hasDisbursement = parseFloat(get(col.disbursement)) > 0;
+      if(!hasDisbursement) { skipped++; return; }
+      billingType = '計時'; hours = 0;
+    }
+
+    // 定額金額從 Amount 欄讀取
+    const fixedAmount = billingType === '定額' ? (parseFloat(get(col.amount)) || 0) : 0;
+
+    entries.push({
+      id: uuid(),
+      caseName,
+      client,
+      opponent,
+      attorney,
+      date,
+      hours,
+      billingType,
+      rate:         parseFloat(get(col.rate)) || 0,
+      fixedAmount,
+      disbursement: parseFloat(get(col.disbursement)) || 0,
+      description:  get(col.description),
+      summary:      get(col.summary),
+      notes:        get(col.notes)
+    });
+    added++;
+  });
+
+  save();
+  renderEntries();
+  renderStats();
+  updateDataLists();
+  updateAttorneyFilter();
+
+  // 顯示對應到的欄位供確認
+  const colInfo = Object.entries(col).filter(([,v])=>v!==null).map(([k,v])=>`${k}→欄${v+1}(${headerRow[v]})`).join('、');
+  let msg = `成功匯入 ${added} 筆工時紀錄。\n欄位對應：${colInfo}`;
+  if(skipped) msg += `\n\n略過 ${skipped} 列。`;
+  if(skipReasons.length) msg += '\n' + skipReasons.slice(0,5).join('\n') + (skipReasons.length>5?`\n…共 ${skipReasons.length} 筆`:'');
+  alert(msg);
+}
+
+function parseHours(s) {
+  if(s === null || s === undefined || s === '') return 0;
+  // XLSX raw 模式回傳純數字時，直接視為小時
+  if(typeof s === 'number') return isNaN(s) ? 0 : s;
+  s = s.toString().trim();
+  if(!s) return 0;
+  // HH:MM 或 H:MM（如 1:30 → 1.5）
+  const hm = s.match(/^(\d+):(\d{2})$/);
+  if(hm) return parseInt(hm[1]) + parseInt(hm[2]) / 60;
+  // 純數字（含小數）
+  const n = parseFloat(s.replace(/,/g, ''));
+  return isNaN(n) ? 0 : n;
+}
+
+function parseDate(s) {
+  if(!s && s !== 0) return null;
+  // XLSX cellDates:true 回傳 Date 物件
+  if(s instanceof Date) {
+    if(isNaN(s)) return null;
+    const yr = s.getFullYear(), mo = String(s.getMonth()+1).padStart(2,'0'), dy = String(s.getDate()).padStart(2,'0');
+    return `${yr}-${mo}-${dy}`;
+  }
+  const str = s.toString().trim();
+  if(!str) return null;
+  // YYYY-MM-DD 或 YYYY/MM/DD（月日可不補零）
+  const m = str.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+  if(m) {
+    const yr = m[1], mo = m[2].padStart(2,'0'), dy = m[3].padStart(2,'0');
+    return isNaN(new Date(`${yr}-${mo}-${dy}`)) ? null : `${yr}-${mo}-${dy}`;
+  }
+  // Excel date serial（數字）
+  const n = parseFloat(str);
+  if(!isNaN(n) && n > 40000) {
+    const d = new Date((n - 25569) * 86400 * 1000);
+    return d.toISOString().slice(0,10);
+  }
+  return null;
+}
+
+// ===================== EXPORT =====================
+function exportExcel() {
+  const list = getFiltered().sort((a,b) => a.date.localeCompare(b.date));
+  // 欄位對齊匯入格式：各計費類型時數分欄存放，可直接重新匯入
+  const header = ['日期/Date','客戶名稱','承辦律師','案件名稱','工作內容/摘要','計時','顧問','定額','無酬','費率','事務費','Amount(NT)','備註'];
+  const rows = list.map(e => {
+    const bt = e.billingType || '計時';
+    const amt = calcAmt(e);
+    return [
+      e.date,
+      e.client||'',
+      e.attorney||'',
+      e.caseName||'',
+      e.description || e.summary || '',
+      bt === '計時' ? e.hours : '',
+      bt === '顧問' ? e.hours : '',
+      bt === '定額' ? e.hours : '',
+      bt === '無酬' ? e.hours : '',
+      (bt === '計時' || bt === '顧問') ? (e.rate||'') : '',
+      e.disbursement||'',
+      bt === '定額' ? (e.fixedAmount||amt||'') : (amt||''),
+      e.notes||''
+    ];
+  });
+  const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
+  ws['!cols'] = [14,18,12,25,40,8,8,8,8,10,10,14,16].map(w=>({wch:w}));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '工時紀錄');
+  const month = document.getElementById('filterMonth').value || new Date().toISOString().slice(0,7);
+  XLSX.writeFile(wb, `工時紀錄_${month}.xlsx`);
+}
+
+// ===================== REPORT =====================
+function renderReport() {
+  const month = document.getElementById('rptMonth').value;
+  const atty = document.getElementById('rptAttorney').value;
+  let list = entries.filter(e => (!month || e.date.startsWith(month)) && (!atty || e.attorney===atty));
+
+  if(!list.length) {
+    document.getElementById('reportContent').innerHTML = '<div class="card"><div class="empty"><div class="empty-icon">📊</div><p>此期間無工時資料</p></div></div>';
+    return;
+  }
+
+  // By case
+  const byCase = {};
+  list.forEach(e => {
+    if(!byCase[e.caseName]) byCase[e.caseName] = {hours:0,amt:0,count:0,attorneys:new Set()};
+    byCase[e.caseName].hours += e.hours||0;
+    byCase[e.caseName].amt += calcAmt(e);
+    byCase[e.caseName].count++;
+    byCase[e.caseName].attorneys.add(e.attorney);
+  });
+
+  // By attorney
+  const byAtty = {};
+  list.forEach(e => {
+    if(!byAtty[e.attorney]) byAtty[e.attorney] = {hours:0,amt:0,count:0};
+    byAtty[e.attorney].hours += e.hours||0;
+    byAtty[e.attorney].amt += calcAmt(e);
+    byAtty[e.attorney].count++;
+  });
+
+  const totalH = list.reduce((s,e)=>s+(e.hours||0),0);
+  const totalAmt = list.reduce((s,e)=>s+calcAmt(e),0);
+  const label = (month || '全期') + (atty ? ` / ${atty}` : '');
+
+  document.getElementById('reportContent').innerHTML = `
+    <div class="card">
+      <div class="card-title">按案件統計 — ${label}</div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>案件名稱</th><th>筆數</th><th>時數(h)</th><th>計費金額</th><th>承辦律師</th></tr></thead>
+        <tbody>
+          ${Object.entries(byCase).sort((a,b)=>b[1].hours-a[1].hours).map(([name,v])=>`
+            <tr class="summary-row">
+              <td>${esc(name)}</td>
+              <td>${v.count}</td>
+              <td class="hours-cell">${v.hours.toFixed(1)}</td>
+              <td>${v.amt>0?fmtNum(Math.round(v.amt))+' 元':'-'}</td>
+              <td>${[...v.attorneys].join('、')}</td>
+            </tr>`).join('')}
+          <tr class="total-row"><td>合計</td><td>${list.length}</td><td>${totalH.toFixed(1)}</td><td>${totalAmt>0?fmtNum(Math.round(totalAmt))+' 元':'-'}</td><td></td></tr>
+        </tbody>
+      </table></div>
+    </div>
+    <div class="card">
+      <div class="card-title">按律師統計 — ${label}</div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>律師</th><th>筆數</th><th>時數(h)</th><th>計費金額</th></tr></thead>
+        <tbody>
+          ${Object.entries(byAtty).sort((a,b)=>b[1].hours-a[1].hours).map(([name,v])=>`
+            <tr class="summary-row">
+              <td>${esc(name)}</td><td>${v.count}</td><td class="hours-cell">${v.hours.toFixed(1)}</td><td>${v.amt>0?fmtNum(Math.round(v.amt))+' 元':'-'}</td>
+            </tr>`).join('')}
+          <tr class="total-row"><td>合計</td><td>${list.length}</td><td>${totalH.toFixed(1)}</td><td>${totalAmt>0?fmtNum(Math.round(totalAmt))+' 元':'-'}</td></tr>
+        </tbody>
+      </table></div>
+    </div>`;
+}
+
+function exportReport() {
+  const month = document.getElementById('rptMonth').value;
+  const atty = document.getElementById('rptAttorney').value;
+  let list = entries.filter(e => (!month || e.date.startsWith(month)) && (!atty || e.attorney===atty));
+  if(!list.length) { alert('無資料可匯出'); return; }
+
+  const wb = XLSX.utils.book_new();
+  // Detail sheet
+  const detailHeader = ['案件名稱','客戶','律師','日期','時數','費率','計費金額','工作內容','備註'];
+  const detailRows = list.map(e=>[e.caseName,e.client||'',e.attorney,e.date,e.hours,e.rate||'',e.rate?e.hours*e.rate:'',e.description,e.notes||'']);
+  const ws1 = XLSX.utils.aoa_to_sheet([detailHeader,...detailRows]);
+  ws1['!cols'] = [25,18,12,12,8,10,12,40,20].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws1, '工時明細');
+  XLSX.writeFile(wb, `工時報表_${month||'全期'}.xlsx`);
+}
+
+// ===================== JUDGMENT SEARCH =====================
+const platforms = {
+  judicial: kw => `https://judgment.judicial.gov.tw/FJUD/default.aspx?kw=${encodeURIComponent(kw)}&judtype=JUDBOOK`,
+  lawsnote: kw => `https://lawsnote.com/search?q=${encodeURIComponent(kw)}`,
+  twlawbot: kw => `https://twlawbot.com/search?q=${encodeURIComponent(kw)}`,
+  lawchat:  _  => `https://lawchat.com.tw/`,
+  laws:     kw => `https://law.moj.gov.tw/LawClass/LawSearchContent.aspx?k=${encodeURIComponent(kw)}`
+};
+
+function getKeyword() {
+  return document.getElementById('jKeyword').value.trim();
+}
+
+function searchJudgment() {
+  const kw = getKeyword();
+  if(!kw) {
+    document.getElementById('platformAlert').style.display = 'flex';
+    return;
+  }
+  document.getElementById('platformAlert').style.display = 'none';
+  addHistory(kw);
+  // Open 司法院 by default
+  window.open(platforms.judicial(kw), '_blank');
+}
+
+function searchByCaseNo() {
+  const court = document.getElementById('jCourt').value;
+  const year = document.getElementById('jYear').value.trim();
+  const type = document.getElementById('jType').value.trim();
+  const no = document.getElementById('jNo').value.trim();
+  if(!year && !type && !no) { alert('請填寫案號資訊'); return; }
+  const kw = [court, year+'年度', type+'字第', no+'號'].filter(Boolean).join('');
+  document.getElementById('jKeyword').value = kw;
+  searchJudgment();
+}
+
+function openPlatform(key) {
+  const kw = getKeyword();
+  if(!kw && key !== 'lawchat') {
+    document.getElementById('platformAlert').style.display = 'flex';
+    return false;
+  }
+  document.getElementById('platformAlert').style.display = 'none';
+  if(kw) addHistory(kw);
+  window.open(platforms[key](kw), '_blank');
+  return false;
+}
+
+function setType(t) {
+  document.getElementById('jType').value = t;
+}
+
+// ===================== SEARCH HISTORY =====================
+function addHistory(kw) {
+  searchHistoryData = searchHistoryData.filter(h => h.keyword !== kw);
+  searchHistoryData.unshift({ keyword: kw, time: new Date().toLocaleString('zh-TW') });
+  if(searchHistoryData.length > 20) searchHistoryData = searchHistoryData.slice(0, 20);
+  localStorage.setItem('wh_search_history', JSON.stringify(searchHistoryData));
+  renderHistory();
+}
+
+function renderHistory() {
+  const el = document.getElementById('searchHistory');
+  if(!searchHistoryData.length) {
+    el.innerHTML = '<li style="color:var(--muted);font-size:13px;text-align:center;padding:20px;">尚無搜尋紀錄</li>';
+    return;
+  }
+  el.innerHTML = searchHistoryData.map(h => `
+    <li class="history-item">
+      <span class="history-keyword" onclick="reuseHistory('${esc(h.keyword)}')">${esc(h.keyword)}</span>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span class="history-meta">${h.time}</span>
+        <button class="btn btn-outline btn-sm" onclick="reuseHistory('${esc(h.keyword)}')">重新搜尋</button>
+      </div>
+    </li>`).join('');
+}
+
+function reuseHistory(kw) {
+  document.getElementById('jKeyword').value = kw;
+  switchTab('judgment');
+}
+
+function clearHistory() {
+  if(!confirm('確定清除所有搜尋紀錄？')) return;
+  searchHistoryData = [];
+  localStorage.setItem('wh_search_history', '[]');
+  renderHistory();
+}
+
+// ===================== UTILS =====================
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function fmtNum(n) {
+  return Number(n).toLocaleString('zh-TW');
+}
+
+// ===================== INVOICE MODULE =====================
+
+// 初始化請款單 Tab
+function initInvoice() {
+  const cases = [...new Set(entries.map(e => e.caseName))];
+  const sel = document.getElementById('inv-case');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">-- 選擇案件 --</option>' +
+    cases.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  if(cur) sel.value = cur;
+  document.getElementById('inv-date').value = document.getElementById('inv-date').value || today();
+}
+
+// 選案件後自動帶入客戶、費率
+function invCaseChange() {
+  const name = document.getElementById('inv-case').value;
+  if(!name) return;
+  const list = entries.filter(e => e.caseName === name);
+  if(!list.length) return;
+  if(list[0].client && !document.getElementById('inv-client').value)
+    document.getElementById('inv-client').value = list[0].client;
+  const withRate = list.find(e => e.rate > 0);
+  if(withRate) document.getElementById('inv-rate').value = withRate.rate;
+  invCalc();
+}
+
+// 即時計算計費金額
+function invCalc() {
+  const name = document.getElementById('inv-case').value;
+  const from = document.getElementById('inv-from').value;
+  const to   = document.getElementById('inv-to-dt').value;
+  const rate = parseFloat(document.getElementById('inv-rate').value) || 0;
+  const prev = parseFloat(document.getElementById('inv-prev').value) || 0;
+  const disc = parseFloat(document.getElementById('inv-disc').value);
+  if(!name) return;
+
+  const list = entries.filter(e => {
+    if(e.caseName !== name) return false;
+    if(from && e.date < from) return false;
+    if(to   && e.date > to)   return false;
+    return true;
+  });
+  const totalH  = list.reduce((s,e)=>s+e.hours, 0);
+  const billH   = Math.max(0, totalH - Math.max(0, prev));
+  const origAmt = Math.round(billH * rate);
+  const finalAmt= disc ? Math.round(origAmt * disc / 100) : origAmt;
+  const balance = prev - totalH;
+
+  const box = document.getElementById('invCalcBox');
+  box.style.display = 'block';
+  document.getElementById('invCalcGrid').innerHTML = `
+    <div class="inv-calc-item"><div class="lbl">本期工時（${list.length}筆）</div><div class="val">${totalH.toFixed(2)} h</div></div>
+    <div class="inv-calc-item"><div class="lbl">前期結餘</div><div class="val">${prev.toFixed(2)} h</div></div>
+    <div class="inv-calc-item"><div class="lbl">超出（計費）</div><div class="val">${billH.toFixed(2)} h</div></div>
+    <div class="inv-calc-item"><div class="lbl">本期結餘</div><div class="val ${balance>=0?'green':'red'}">${balance.toFixed(2)}</div></div>
+    <div class="inv-calc-item"><div class="lbl">原始金額</div><div class="val">NT$ ${fmtNum(origAmt)}</div></div>
+    ${disc?`<div class="inv-calc-item"><div class="lbl">折扣後（${disc}%）</div><div class="val red">NT$ ${fmtNum(finalAmt)}</div></div>`:''}
+  `;
+}
+
+// 收集請款單所有參數
+function getInvData() {
+  const name     = document.getElementById('inv-case').value;
+  const from     = document.getElementById('inv-from').value;
+  const to       = document.getElementById('inv-to-dt').value;
+  const hireFrom = document.getElementById('inv-hire-from').value;
+  const hireTo   = document.getElementById('inv-hire-to').value;
+  const rate     = parseFloat(document.getElementById('inv-rate').value) || 7000;
+  const prev     = parseFloat(document.getElementById('inv-prev').value) || 0;
+  const disc     = parseFloat(document.getElementById('inv-disc').value);
+  const discNote = document.getElementById('inv-disc-note').value.trim();
+  const invDate  = document.getElementById('inv-date').value || today();
+  const prefix   = document.getElementById('inv-prefix').value.trim() || 'YU';
+  const caseNo   = document.getElementById('inv-caseno').value.trim();
+  const client   = document.getElementById('inv-client').value.trim();
+  const desc     = document.getElementById('inv-desc').value.trim();
+
+  const list = entries.filter(e => {
+    if(e.caseName !== name) return false;
+    if(from && e.date < from) return false;
+    if(to   && e.date > to)   return false;
+    return true;
+  }).sort((a,b) => a.date.localeCompare(b.date));
+
+  const totalH   = list.reduce((s,e)=>s+e.hours, 0);
+  const billH    = Math.max(0, totalH - Math.max(0, prev));
+  const origAmt  = Math.round(billH * rate);
+  const finalAmt = disc ? Math.round(origAmt * disc / 100) : origAmt;
+  const balance  = prev - totalH;
+  const roc      = toROCDate(invDate);
+  const invNo    = `${prefix}-${caseNo}-${roc.compact}`;
+
+  return { name, from, to, hireFrom, hireTo, rate, prev, disc, discNote,
+           invDate, prefix, caseNo, client, desc, list,
+           totalH, billH, origAmt, finalAmt, balance, roc, invNo };
+}
+
+// 民國日期轉換
+function toROCDate(s) {
+  if(!s) s = today();
+  const d   = new Date(s + 'T00:00:00');
+  const yr  = d.getFullYear() - 1911;
+  const mo  = d.getMonth() + 1;
+  const dy  = d.getDate();
+  const pad = n => String(n).padStart(2,'0');
+  return {
+    year: yr, month: mo, day: dy,
+    compact: `${yr}${pad(mo)}${pad(dy)}`,
+    display: `民國 ${yr} 年 ${mo} 月 ${dy} 日`
+  };
+}
+
+// 金額→中文大寫
+function toChineseMoney(num) {
+  const n = Math.round(num);
+  if(n === 0) return '新台幣零元整';
+  const cn = ['零','壹','貳','參','肆','伍','陸','柒','捌','玖'];
+
+  function grp(m) { // 0-9999 → 中文
+    if(!m) return '';
+    const q=Math.floor(m/1000), b=Math.floor((m%1000)/100),
+          s=Math.floor((m%100)/10), g=m%10;
+    let r='';
+    if(q)             r += cn[q]+'仟';
+    if(b)             r += cn[b]+'佰';
+    else if(r&&(s||g)) r += '零';
+    if(s)             r += cn[s]+'拾';
+    else if(r&&g)     r += '零';
+    if(g)             r += cn[g];
+    return r;
+  }
+
+  const wan=Math.floor(n/10000), rest=n%10000;
+  let out='';
+  if(wan) { out += grp(wan)+'萬'; if(rest && rest<1000) out+='零'; }
+  if(rest) out += grp(rest);
+  return '新台幣' + out + '元整';
+}
+
+// 產生請款單 HTML
+function buildInvoiceHtml(d) {
+  const discRow = d.disc ? `
+    <p style="margin-top:8px;"><strong>◆${esc(d.discNote || `依廖郁晴律師指示特別予以${d.disc/10}折優惠`)}</strong></p>` : '';
+  const amtCell = d.disc
+    ? `<p style="text-decoration:line-through;color:#888;">NT$ ${fmtNum(d.origAmt)}.00</p>
+       <p style="font-weight:bold;font-size:15px;margin-top:6px;">NT$ ${fmtNum(d.finalAmt)}.00</p>`
+    : `<p style="font-weight:bold;font-size:15px;">NT$ ${fmtNum(d.finalAmt)}.00</p>`;
+
+  return `<div style="font-family:'新細明體','PMingLiU','SimSun',serif;width:700px;margin:0 auto;padding:56px 64px;color:#000;min-height:990px;position:relative;box-sizing:border-box;background:#fff;">
+
+  <h1 style="text-align:center;font-size:30px;font-weight:bold;letter-spacing:18px;text-decoration:underline;margin-bottom:36px;">請　款　單</h1>
+
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:22px;">
+    <div>
+      <div style="font-size:18px;font-weight:bold;">文匯法律事務所</div>
+      <div style="font-size:13px;margin-top:8px;line-height:2.1;">
+        台北市大安區敦化南路 2 段 182 號 19 樓之 1<br>
+        電話：(02)2378-8899<br>
+        傳真：(02)2378-0185
+      </div>
+    </div>
+    <div style="text-align:right;font-size:13.5px;line-height:2.4;padding-top:4px;">
+      <div>日期：${d.roc.display}</div>
+      <div>編號：${esc(d.invNo)}</div>
+    </div>
+  </div>
+
+  <div style="font-size:14.5px;margin-bottom:20px;line-height:2.2;">謹　致<br>TO：${esc(d.client)}</div>
+
+  <div style="height:2px;background:#000;margin-bottom:10px;"></div>
+  <div style="font-size:13.5px;margin-bottom:3px;">請惠予撥付下列費用</div>
+  <div style="font-size:12.5px;font-weight:bold;font-style:italic;margin-bottom:12px;">THIS IS TO REQUEST YOUR PAYMENT FOR THE FOLLOWING SERVICE(S)：</div>
+
+  <table style="width:100%;border-collapse:collapse;border:2px solid #000;">
+    <tr>
+      <th style="border:2px solid #000;padding:10px 14px;text-align:center;font-size:17px;text-decoration:underline;width:64%;">摘　　　要</th>
+      <th style="border:2px solid #000;padding:10px 14px;text-align:center;font-size:17px;text-decoration:underline;">金　　額</th>
+    </tr>
+    <tr>
+      <th style="border:1px solid #000;padding:3px 14px;text-align:center;font-size:12px;font-weight:bold;border-top:none;">DESCRIPTION</th>
+      <th style="border:1px solid #000;padding:3px 14px;text-align:center;font-size:12px;font-weight:bold;border-top:none;">AMOUNT</th>
+    </tr>
+    <tr>
+      <td style="border:2px solid #000;padding:22px 18px;font-size:14px;vertical-align:top;line-height:2.1;">
+        <p>本所為辦理　${esc(d.desc)}提供法律顧問服務之酬金。（明細詳參附件）</p>
+        <br>
+        <p>顧問時數超出：${d.billH.toFixed(2)} 小時 x ${fmtNum(d.rate)} 元　＝　${fmtNum(d.origAmt)} 元</p>
+        ${discRow}
+        <br><br><br>
+      </td>
+      <td style="border:2px solid #000;padding:22px 16px;font-size:14px;vertical-align:top;text-align:right;line-height:2.2;">
+        ${amtCell}
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2" style="border:2px solid #000;padding:12px 18px;font-size:14.5px;">
+        <strong>總　計　　${toChineseMoney(d.finalAmt)}</strong><br>
+        <strong>TOTAL</strong>
+      </td>
+    </tr>
+  </table>
+
+  <div style="margin-top:16px;font-size:13.5px;">請即將款撥付，謝謝！</div>
+  <div style="font-size:12.5px;font-weight:bold;margin-top:2px;">YOUR EARLY ATTENTION TO THIS STATEMENT WILL BE MUCH APPRECIATED.<br>THANK YOU!</div>
+  <div style="font-size:13px;line-height:2.3;margin-top:8px;">
+    說明：1. 敬請以匯款方式匯至下列帳戶：<br>
+    　　　　　銀行名稱：彰化銀行建國分行<br>
+    　　　　　帳　　號：52895100748800<br>
+    　　　　　戶　　名：廖郁晴<br>
+    　　　2. 本所於收款後即開立收據送交當事人收執。<br>
+    　　　3. 公司行號請依法扣繳 10% 所得稅，年終並請惠寄扣繳憑單為盼。
+  </div>
+
+
+</div>`;
+}
+
+// 產生時數報告 HTML
+function buildReportHtml(d) {
+  // 期間月份標題（例：11、12 月）
+  const months = [...new Set(d.list.map(e => parseInt(e.date.slice(5,7))))].sort((a,b)=>a-b);
+  const monthTitle = months.join('、') + ' 月顧問時數報告';
+  const clientName = d.client.replace(/先生|女士|律師|小姐|博士/g,'').trim();
+  const hireStr = (d.hireFrom && d.hireTo) ? `${d.hireFrom}-${d.hireTo}` : '—';
+  const periodStr = (d.from && d.to) ? `${d.from}-${d.to}` : d.list.length ? `${d.list[0].date}-${d.list[d.list.length-1].date}` : '';
+
+  const THSTYLE = 'background:#4a7c3f;color:white;border:1px solid #3a6a2f;padding:9px 10px;text-align:center;font-size:13px;';
+  const TDSTYLE = 'border:1px solid #c8d8c4;padding:8px 10px;text-align:center;font-size:13px;';
+  const TDLEFT  = 'border:1px solid #c8d8c4;padding:8px 12px;font-size:13px;';
+
+  const rows = d.list.map((e,i) => {
+    const bg = i%2===0?'#fff':'#f4f9f2';
+    const summ = e.summary || e.description.slice(0,8);
+    return `<tr style="background:${bg};">
+      <td style="${TDSTYLE}">${e.date}</td>
+      <td style="${TDSTYLE}">${esc(e.attorney)}律師</td>
+      <td style="${TDSTYLE}">${esc(summ)}</td>
+      <td style="${TDLEFT}">${esc(e.description)}</td>
+      <td style="${TDSTYLE}font-weight:600;">${e.hours.toFixed(2)}</td>
+    </tr>`;
+  }).join('');
+
+  return `<div style="font-family:'新細明體','PMingLiU','SimSun',serif;width:700px;margin:0 auto;padding:50px 56px;color:#000;box-sizing:border-box;background:#fff;">
+
+  <h2 style="text-align:center;font-size:22px;font-weight:bold;margin-bottom:4px;">${esc(clientName)}</h2>
+  <h3 style="text-align:center;font-size:16px;font-weight:normal;margin-bottom:28px;">${monthTitle}</h3>
+
+  <div style="font-size:13.5px;line-height:2.5;margin-bottom:18px;">
+    案　　號：${esc(d.caseNo)}<br>
+    聘任期間：${hireStr}<br>
+    統計期間：${periodStr}
+  </div>
+
+  <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+    <thead>
+      <tr>
+        <th style="${THSTYLE}width:90px;">日期</th>
+        <th style="${THSTYLE}width:80px;">律師</th>
+        <th style="${THSTYLE}width:90px;">摘要</th>
+        <th style="${THSTYLE}">說明</th>
+        <th style="${THSTYLE}width:75px;">時數(HR)</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>
+
+  <table style="width:55%;margin:0 auto 28px;border-collapse:collapse;">
+    <tr>
+      <th style="${THSTYLE}">前期結餘</th>
+      <th style="${THSTYLE}">本期使用時數</th>
+      <th style="${THSTYLE}">本期結餘</th>
+    </tr>
+    <tr>
+      <td style="${TDSTYLE}">${(d.prev||0).toFixed(2)}</td>
+      <td style="${TDSTYLE}font-weight:bold;font-size:14px;">${d.totalH.toFixed(2)}</td>
+      <td style="${TDSTYLE}color:${d.balance>=0?'#000':'#c00'};font-weight:600;">${d.balance.toFixed(2)}</td>
+    </tr>
+  </table>
+
+  <div style="text-align:center;font-size:12px;color:#888;margin-top:24px;">第 1 頁，共 1 頁</div>
+</div>`;
+}
+
+// 產生並顯示請款單
+function generateInvoice() {
+  const d = getInvData();
+  if(!d.name) { alert('請選擇案件'); return; }
+  if(!d.list.length) { alert('所選期間無工時紀錄'); return; }
+  document.getElementById('invDoc').innerHTML = buildInvoiceHtml(d);
+  document.getElementById('invPreviewCard').style.display = 'block';
+  document.getElementById('invPreviewCard').scrollIntoView({behavior:'smooth'});
+}
+
+// 產生並顯示時數報告
+function generateHoursReport() {
+  const d = getInvData();
+  if(!d.name) { alert('請選擇案件'); return; }
+  if(!d.list.length) { alert('所選期間無工時紀錄'); return; }
+  document.getElementById('rptDoc').innerHTML = buildReportHtml(d);
+  document.getElementById('rptPreviewCard').style.display = 'block';
+  document.getElementById('rptPreviewCard').scrollIntoView({behavior:'smooth'});
+}
+
+// 兩份一起產生
+function printBoth() {
+  const d = getInvData();
+  if(!d.name) { alert('請選擇案件'); return; }
+  if(!d.list.length) { alert('所選期間無工時紀錄'); return; }
+  const html = buildInvoiceHtml(d) + '<div style="page-break-before:always;"></div>' + buildReportHtml(d);
+  openPrintWindow(html, '請款單 + 時數報告');
+}
+
+// 列印單份
+function printDoc(type) {
+  const el = document.getElementById(type==='inv'?'invDoc':'rptDoc');
+  if(!el.innerHTML.trim()) { alert('請先產生文件'); return; }
+  openPrintWindow(el.innerHTML, type==='inv'?'請款單':'時數報告');
+}
+
+function downloadWord(type) {
+  const el = document.getElementById(type === 'inv' ? 'invDoc' : 'rptDoc');
+  if (!el.innerHTML.trim()) { alert('請先產生文件'); return; }
+  const d = getInvData();
+  const filename = type === 'inv'
+    ? `請款單_${d.invNo || today()}.docx`
+    : `時數報告_${d.name || today()}.docx`;
+  const fullHtml = `<!DOCTYPE html><html><head>
+    <meta charset="UTF-8">
+    <style>
+      body { font-family: '新細明體','PMingLiU','SimSun',serif; }
+      table { border-collapse: collapse; width: 100%; }
+      th, td { border: 1px solid #000; padding: 8px; }
+    </style>
+  </head><body>${el.innerHTML}</body></html>`;
+  const blob = htmlDocx.asBlob(fullHtml, { orientation: 'portrait', margins: { top: 720, right: 720, bottom: 720, left: 720 } });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+}
+
+function openPrintWindow(bodyHtml, title) {
+  const win = window.open('','_blank','width=900,height=750');
+  win.document.write(`<!DOCTYPE html><html><head>
+    <meta charset="UTF-8"><title>${title}</title>
+    <style>
+      @page { size: A4; margin: 0; }
+      body  { margin:0; background:white; }
+      @media print { body { print-color-adjust:exact; -webkit-print-color-adjust:exact; } }
+    </style>
+  </head><body>${bodyHtml}</body></html>`);
+  win.document.close();
+  setTimeout(() => win.print(), 600);
+}
+</script>
+</body>
+</html>
