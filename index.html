@@ -992,7 +992,7 @@ function detectColumns(headerRow) {
     amount      : find('amount','金額'),
     rate        : find('費率','rate','hourly'),
     description : find('工作說明','說明','工作內容','description','narrative','memo','備忘','detail'),
-    summary     : find('摘要','工作摘要','work summary','summary','subject'),
+    summary     : find('摘要','工作摘要','summary','subject'),
     notes       : find('備註','remark','note'),
   };
 }
@@ -1563,12 +1563,13 @@ function buildReportHtml(d) {
 
   const rows = d.list.map((e,i) => {
     const bg = i%2===0?'#fff':'#f4f9f2';
-    const summ = e.summary || e.description.slice(0,8);
+    const summ = e.summary || '';
+    const desc = e.description || e.summary || '';
     return `<tr style="background:${bg};">
       <td style="${TDSTYLE}">${e.date}</td>
       <td style="${TDSTYLE}">${esc(e.attorney)}律師</td>
       <td style="${TDSTYLE}">${esc(summ)}</td>
-      <td style="${TDLEFT}">${esc(e.description)}</td>
+      <td style="${TDLEFT}">${esc(desc)}</td>
       <td style="${TDSTYLE}font-weight:600;">${e.hours.toFixed(2)}</td>
     </tr>`;
   }).join('');
