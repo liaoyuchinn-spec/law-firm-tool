@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>文匯法律事務所｜工時管理暨判決查詢</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://unpkg.com/html-docx-js/dist/html-docx.js"></script>
 <style>
   :root {
     --navy: #1a2847;
@@ -452,6 +451,10 @@
         <label>客戶稱謂（TO）</label>
         <input type="text" id="inv-client" placeholder="例：李韋宏先生">
       </div>
+      <div class="form-group full">
+        <label>客戶地址</label>
+        <input type="text" id="inv-addr" placeholder="例：台北市大安區忠孝東路四段 1 號">
+      </div>
       <div class="form-group">
         <label>案號</label>
         <input type="text" id="inv-caseno" placeholder="例：21C001Y">
@@ -506,10 +509,7 @@
   <div id="invPreviewCard" class="card" style="display:none;">
     <div class="card-title" style="justify-content:space-between;">
       <span>請款單預覽</span>
-      <span style="display:flex;gap:8px;">
-        <button class="btn btn-outline btn-sm" onclick="downloadWord('inv')">📥 下載 Word</button>
-        <button class="btn btn-gold btn-sm" onclick="printDoc('inv')">🖨️ 列印 / 存 PDF</button>
-      </span>
+      <button class="btn btn-gold btn-sm" onclick="printDoc('inv')">🖨️ 列印 / 存 PDF</button>
     </div>
     <div class="inv-doc-wrap">
       <div id="invDoc" style="background:white;"></div>
@@ -520,10 +520,7 @@
   <div id="rptPreviewCard" class="card" style="display:none;">
     <div class="card-title" style="justify-content:space-between;">
       <span>時數報告預覽（附件）</span>
-      <span style="display:flex;gap:8px;">
-        <button class="btn btn-outline btn-sm" onclick="downloadWord('rpt')">📥 下載 Word</button>
-        <button class="btn btn-gold btn-sm" onclick="printDoc('rpt')">🖨️ 列印 / 存 PDF</button>
-      </span>
+      <button class="btn btn-gold btn-sm" onclick="printDoc('rpt')">🖨️ 列印 / 存 PDF</button>
     </div>
     <div class="inv-doc-wrap">
       <div id="rptDoc" style="background:white;"></div>
@@ -1020,47 +1017,24 @@ function parseImport(rows, filename) {
 
   let added = 0, skipped = 0;
   const skipReasons = [];
-  const debugEntries = []; // 調試：記錄每一列的判定結果
-
-  // 合併儲存格繼承：記錄上一筆有效值
-  let lastCaseName = '', lastClient = '', lastOpponent = '', lastAttorney = '', lastDate = '';
 
   dataRows.forEach((r, idx) => {
     const rowNum = headerIdx + idx + 2;
     const get = (i) => (i !== null && i !== undefined && r[i] !== undefined && r[i] !== null) ? String(r[i]).trim() : '';
-    // 取原始值（數字不先轉字串，供 parseHours 判斷 Excel 時間格式）
-    const getRaw = (i) => (i !== null && i !== undefined && r[i] !== undefined && r[i] !== null) ? r[i] : '';
 
-    // 取原始值
-    const rawCaseName  = get(col.caseName);
-    const rawClient    = get(col.client);
-    const rawAttorney  = get(col.attorney);
-    const rawDateRaw   = (col.date !== null && r[col.date] !== undefined && r[col.date] !== null) ? r[col.date] : '';
-
-    // 關鍵篩選：客戶或律師至少有一個原始值
-    // 這樣能確保合計列（客戶和律師都空）被排除，同時允許合併儲存格的行被正常處理
-    if(!rawClient && !rawAttorney) { skipped++; return; }
-
-    // 案件名稱若為空則繼承上一列
-    const caseName = rawCaseName || lastCaseName;
+    const caseName = get(col.caseName);
     if(!caseName) { skipped++; return; }
-    lastCaseName = caseName;
 
-    // 日期可以繼承；客戶、律師、對造使用原始值
-    const dateValid = parseDate(rawDateRaw) || lastDate;
-    if(!dateValid) { skipped++; skipReasons.push(`第 ${rowNum} 列：日期無法識別`); return; }
-    if(parseDate(rawDateRaw)) lastDate = dateValid; // 只有新日期時才更新
+    // 日期欄直接取原始值（可能是 Date 物件），不先 stringify
+    const dateRaw = (col.date !== null && r[col.date] !== undefined) ? r[col.date] : '';
+    const date = parseDate(dateRaw);
+    if(!date) { skipped++; skipReasons.push(`第 ${rowNum} 列：日期「${dateRaw}」無法識別`); return; }
 
-    const client   = rawClient || lastClient; if(rawClient) lastClient = rawClient;
-    const opponent = get(col.opponent) || lastOpponent; if(get(col.opponent)) lastOpponent = get(col.opponent);
-    const attorney = rawAttorney || lastAttorney; if(rawAttorney) lastAttorney = rawAttorney;
-    const date = dateValid;
-
-    // 各類型各有獨立時數欄（傳遞原始值以正確處理 Excel 時間格式）
-    const hrsHourly   = parseHours(getRaw(col.hours));
-    const hrsRetainer = parseHours(getRaw(col.retainer));
-    const hrsFixed    = parseHours(getRaw(col.fixedFee));
-    const hrsNonBill  = parseHours(getRaw(col.nonBill));
+    // 各類型各有獨立時數欄（參考檔設計原則）
+    const hrsHourly   = parseHours(get(col.hours));
+    const hrsRetainer = parseHours(get(col.retainer));
+    const hrsFixed    = parseHours(get(col.fixedFee));
+    const hrsNonBill  = parseHours(get(col.nonBill));
 
     // 判斷計費類型：依哪個時數欄有值決定
     let billingType, hours;
@@ -1068,12 +1042,7 @@ function parseImport(rows, filename) {
     else if(hrsFixed    > 0) { billingType = '定額'; hours = hrsFixed; }
     else if(hrsNonBill  > 0) { billingType = '無酬'; hours = hrsNonBill; }
     else if(hrsHourly   > 0) { billingType = '計時'; hours = hrsHourly; }
-    else {
-      // 四欄均空：若有事務費則仍匯入為計時 0 時數；否則略過
-      const hasDisbursement = parseFloat(get(col.disbursement)) > 0;
-      if(!hasDisbursement) { skipped++; return; }
-      billingType = '計時'; hours = 0;
-    }
+    else { skipped++; return; } // 四欄均空 → 略過
 
     // 定額金額從 Amount 欄讀取
     const fixedAmount = billingType === '定額' ? (parseFloat(get(col.amount)) || 0) : 0;
@@ -1081,9 +1050,9 @@ function parseImport(rows, filename) {
     entries.push({
       id: uuid(),
       caseName,
-      client,
-      opponent,
-      attorney,
+      client:       get(col.client),
+      opponent:     get(col.opponent),
+      attorney:     get(col.attorney),
       date,
       hours,
       billingType,
@@ -1113,10 +1082,7 @@ function parseImport(rows, filename) {
 
 function parseHours(s) {
   if(s === null || s === undefined || s === '') return 0;
-  // XLSX raw 模式回傳純數字時，直接視為小時
-  if(typeof s === 'number') return isNaN(s) ? 0 : s;
   s = s.toString().trim();
-  if(!s) return 0;
   // HH:MM 或 H:MM（如 1:30 → 1.5）
   const hm = s.match(/^(\d+):(\d{2})$/);
   if(hm) return parseInt(hm[1]) + parseInt(hm[2]) / 60;
@@ -1438,6 +1404,7 @@ function getInvData() {
   const prefix   = document.getElementById('inv-prefix').value.trim() || 'YU';
   const caseNo   = document.getElementById('inv-caseno').value.trim();
   const client   = document.getElementById('inv-client').value.trim();
+  const addr     = document.getElementById('inv-addr').value.trim();
   const desc     = document.getElementById('inv-desc').value.trim();
 
   const list = entries.filter(e => {
@@ -1456,7 +1423,7 @@ function getInvData() {
   const invNo    = `${prefix}-${caseNo}-${roc.compact}`;
 
   return { name, from, to, hireFrom, hireTo, rate, prev, disc, discNote,
-           invDate, prefix, caseNo, client, desc, list,
+           invDate, prefix, caseNo, client, addr, desc, list,
            totalH, billH, origAmt, finalAmt, balance, roc, invNo };
 }
 
@@ -1530,7 +1497,7 @@ function buildInvoiceHtml(d) {
     </div>
   </div>
 
-  <div style="font-size:14.5px;margin-bottom:20px;line-height:2.2;">謹　致<br>TO：${esc(d.client)}</div>
+  <div style="font-size:14.5px;margin-bottom:20px;line-height:2.2;">謹　致<br>TO：${esc(d.client)}${d.addr ? `<br>${esc(d.addr)}` : ''}</div>
 
   <div style="height:2px;background:#000;margin-bottom:10px;"></div>
   <div style="font-size:13.5px;margin-bottom:3px;">請惠予撥付下列費用</div>
@@ -1680,29 +1647,6 @@ function printDoc(type) {
   const el = document.getElementById(type==='inv'?'invDoc':'rptDoc');
   if(!el.innerHTML.trim()) { alert('請先產生文件'); return; }
   openPrintWindow(el.innerHTML, type==='inv'?'請款單':'時數報告');
-}
-
-function downloadWord(type) {
-  const el = document.getElementById(type === 'inv' ? 'invDoc' : 'rptDoc');
-  if (!el.innerHTML.trim()) { alert('請先產生文件'); return; }
-  const d = getInvData();
-  const filename = type === 'inv'
-    ? `請款單_${d.invNo || today()}.docx`
-    : `時數報告_${d.name || today()}.docx`;
-  const fullHtml = `<!DOCTYPE html><html><head>
-    <meta charset="UTF-8">
-    <style>
-      body { font-family: '新細明體','PMingLiU','SimSun',serif; }
-      table { border-collapse: collapse; width: 100%; }
-      th, td { border: 1px solid #000; padding: 8px; }
-    </style>
-  </head><body>${el.innerHTML}</body></html>`;
-  const blob = htmlDocx.asBlob(fullHtml, { orientation: 'portrait', margins: { top: 720, right: 720, bottom: 720, left: 720 } });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = filename;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 10000);
 }
 
 function openPrintWindow(bodyHtml, title) {
