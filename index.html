@@ -1563,13 +1563,10 @@ function buildReportHtml(d) {
 
   const rows = d.list.map((e,i) => {
     const bg = i%2===0?'#fff':'#f4f9f2';
-    const summ = e.summary || '';
-    const desc = e.description || e.summary || '';
     return `<tr style="background:${bg};">
       <td style="${TDSTYLE}">${e.date}</td>
       <td style="${TDSTYLE}">${esc(e.attorney)}律師</td>
-      <td style="${TDSTYLE}">${esc(summ)}</td>
-      <td style="${TDLEFT}">${esc(desc)}</td>
+      <td style="${TDLEFT}">${esc(e.description || e.summary || '')}</td>
       <td style="${TDSTYLE}font-weight:600;">${e.hours.toFixed(2)}</td>
     </tr>`;
   }).join('');
@@ -1590,8 +1587,7 @@ function buildReportHtml(d) {
       <tr>
         <th style="${THSTYLE}width:90px;">日期</th>
         <th style="${THSTYLE}width:80px;">律師</th>
-        <th style="${THSTYLE}width:90px;">摘要</th>
-        <th style="${THSTYLE}">說明</th>
+        <th style="${THSTYLE}">工作說明</th>
         <th style="${THSTYLE}width:75px;">時數(HR)</th>
       </tr>
     </thead>
